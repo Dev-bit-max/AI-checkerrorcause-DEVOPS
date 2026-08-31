@@ -1,0 +1,30 @@
+{
+  "scenario_1_database_timeout": {
+    "service": "EC2 / RDS / ALB",
+    "errorLogs": [
+      "10:01:00 AM [EC2-App-01] WARNING: CPU utilization spiked to 98%",
+      "10:02:15 AM [RDS-MySQL-Primary] ERROR: Connection pool exhausted, max_connections limit reached",
+      "10:02:45 AM [RDS-MySQL-Primary] ERROR: Connection timed out for client 172.31.14.2",
+      "10:03:00 AM [Spring-App] ERROR: /api/v1/login endpoint failed with 500 Internal Server Error",
+      "10:04:10 AM [AWS-ALB] HTTP 503 Service Unavailable: No healthy targets in target group"
+    ]
+  },
+  "scenario_2_lambda_timeout": {
+    "service": "AWS Lambda / S3",
+    "errorLogs": [
+      "02:15:00 PM [S3-EventBridge] INFO: Triggered event ObjectCreated for image-upload-bucket",
+      "02:15:05 PM [Lambda-ImageProcessor] START RequestId: 4f7c8b21-9d1a-4a2e",
+      "02:15:35 PM [Lambda-ImageProcessor] Task timed out after 30.03 seconds",
+      "02:15:36 PM [AWS-CloudWatch] ALARM: Lambda Duration > 30000ms threshold breached"
+    ]
+  },
+  "scenario_3_ec2_out_of_memory": {
+    "service": "AWS EC2",
+    "errorLogs": [
+      "08:45:00 AM [Kernel-EC2-Instance] oom-killer invoked: score=1024, pid=1420 (java)",
+      "08:45:02 AM [Kernel-EC2-Instance] Out of memory: Kill process 1420 (java) score 950 or sacrifice child",
+      "08:45:05 AM [Systemd] spring-boot.service: Main process exited, code=killed, status=9/KILL",
+      "08:45:10 AM [AWS-ALB] Health check failed for target i-0abcd1234efgh5678"
+    ]
+  }
+}

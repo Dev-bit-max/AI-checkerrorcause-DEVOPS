@@ -1,5 +1,5 @@
 // TimelineEvent.java
-package com.cloud.AWSbackenderrorcause.ai;
+package com.cloud.AWSbackenderrorcause.Ai;
 
 public class TimelineEvent 
 {

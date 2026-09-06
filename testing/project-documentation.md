@@ -71,10 +71,119 @@ Tracks cloud services monitored by the system.
 ---
 
 ## 5. API Reference
-* `POST /api/logs` - Ingest raw AWS logs.
-* `POST /api/analyze` - Trigger AI root cause analysis.
-* `GET /api/incidents` - Retrieve list of all incidents.
-* `GET /api/reports/{id}` - Fetch incident report by ID.
+
+This section outlines the REST API contracts implemented by the Spring Boot backend (`http://localhost:8081`), defining endpoints, payloads, and response structures for log ingestion, AI root-cause analysis, and dashboard reporting.
+
+---
+
+### **1. Ingest Raw AWS Cloud Logs**
+
+Accepts and stores raw incoming operational events from AWS CloudWatch before processing.
+
+* **Endpoint:** `POST /api/logs`
+* **Headers:** `Content-Type: application/json`
+* **Request Body:**
+```json
+{
+  "source": "AWS CloudWatch",
+  "service": "ALB / Lambda",
+  "timestamp": "2026-08-31T20:00:00Z",
+  "logMessage": "503 Service Unavailable: Target response timeout"
+}
+```
+* **Success Response (`200 OK`):**
+```json
+{
+  "status": "SUCCESS",
+  "message": "Log entry ingested successfully",
+  "logId": 1042
+}
+```
+* **Error Codes:** `400 Bad Request` (malformed JSON or missing fields).
+
+---
+
+### **2. Trigger AI Root-Cause Analysis**
+
+Transfers failure logs to the AI layer (OpenAI/OpenRouter) to generate timeline correlations, determine the root cause, and propose mitigation strategies.
+
+* **Endpoint:** `POST /api/analyze`
+* **Headers:** `Content-Type: application/json`
+* **Request Body:**
+```json
+{
+  "service": "EC2 / RDS / ALB",
+  "errorLogs": [
+    "10:01:00 AM [EC2-App-01] WARNING: CPU utilization spiked to 98%",
+    "10:02:15 AM [RDS-MySQL-Primary] ERROR: Connection pool exhausted",
+    "10:04:10 AM [AWS-ALB] HTTP 503 Service Unavailable"
+  ]
+}
+```
+* **Success Response (`200 OK`):**
+```json
+{
+  "incidentId": "INC-8421",
+  "rootCause": "RDS MySQL database connection pool exhaustion triggered by upstream EC2 CPU saturation",
+  "timeline": [
+    { "time": "10:01:00 AM", "event": "EC2 CPU spiked to 98%" },
+    { "time": "10:02:15 AM", "event": "RDS connection pool exhausted" },
+    { "time": "10:04:10 AM", "event": "ALB returned 503 Service Unavailable" }
+  ],
+  "recommendations": [
+    "Increase RDS max_connections configuration and connection pool capacity",
+    "Configure auto-scaling triggers on EC2 based on 75% CPU threshold",
+    "Profile and optimize slow-running database queries"
+  ],
+  "severity": "HIGH",
+  "status": "ANALYZED"
+}
+```
+* **Error Codes:** `400 Bad Request` (empty log array), `500 Internal Server Error` (AI service unreachable or failed to parse JSON).
+
+---
+
+### **3. Retrieve All Incidents**
+
+Supplies Krutant's React dashboard with historical incident overviews populated from Ketaki's MySQL database.
+
+* **Endpoint:** `GET /api/incidents`
+* **Success Response (`200 OK`):**
+```json
+[
+  {
+    "id": 1,
+    "incidentKey": "INC-8421",
+    "serviceName": "EC2 / RDS",
+    "severity": "HIGH",
+    "status": "RESOLVED",
+    "createdAt": "2026-08-31T10:05:00Z"
+  }
+]
+```
+* **Error Codes:** `500 Internal Server Error` (database query failure).
+
+---
+
+### **4. Retrieve Specific Incident Report by ID**
+
+Fetches detailed AI breakdown, event timelines, and recommendations for a single incident record.
+
+* **Endpoint:** `GET /api/reports/{id}`
+* **Parameters:** `id` (Path variable, Integer)
+* **Success Response (`200 OK`):**
+```json
+{
+  "reportId": 1,
+  "incidentId": 1,
+  "rootCause": "RDS MySQL database connection pool exhaustion",
+  "aiModelUsed": "gpt-4o / openrouter",
+  "confidenceScore": 0.94,
+  "recommendation": "Increase RDS max_connections parameter and scale instance.",
+  "generatedAt": "2026-08-31T10:05:30Z"
+}
+```
+* **Error Codes:** `404 Not Found` (invalid report ID), `400 Bad Request` (non-numeric ID).
 
 ---
 

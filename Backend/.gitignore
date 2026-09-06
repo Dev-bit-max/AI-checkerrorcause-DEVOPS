@@ -33,10 +33,18 @@ build/
 .vscode/
 
 # Local secrets
+<<<<<<< HEAD
 src/main/resources/application-local.yml
+=======
+src/main/resources/application-local.properties
+>>>>>>> 3a472fa9d407043d469b58585b8e730becc54a73
 
 # Environment files
 .env
 
 # Logs
+<<<<<<< HEAD
 *.log
+=======
+*.log
+>>>>>>> 3a472fa9d407043d469b58585b8e730becc54a73

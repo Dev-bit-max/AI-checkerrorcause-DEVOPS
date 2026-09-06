@@ -30,34 +30,43 @@ Modern cloud applications hosted on AWS generate thousands of log lines across s
 
 ### 1. `incidents`
 Stores core incident metadata.
-* `id` (Primary Key, INT)
-* `service_name` (VARCHAR)
-* `status` (VARCHAR - e.g., OPEN, RESOLVED)
-* `severity` (VARCHAR - e.g., CRITICAL, HIGH)
-* `created_at` (TIMESTAMP)
+* `incident_id` (Primary Key, INT)
+* `title` (VARCHAR)
+* `status` (VARCHAR - e.g., OPEN, INVESTIGATING, RESOLVED)
+* `severity` (VARCHAR - e.g., CRITICAL, HIGH, MEDIUM)
+* `incident_type` (VARCHAR - e.g., PERFORMANCE_DEGRADATION, OUTAGE)
+* `started_at` (TIMESTAMP)
+* `ended_at` (TIMESTAMP, Nullable)
 
 ### 2. `incident_events`
-Tracks chronological timeline events under a single incident.
-* `id` (Primary Key, INT)
-* `incident_id` (Foreign Key referencing `incidents.id`)
-* `timestamp` (TIMESTAMP)
-* `log_level` (VARCHAR - e.g., WARNING, ERROR)
-* `message` (TEXT - e.g., "RDS Database connection timed out")
+Tracks individual chronological timeline events belonging to an incident.
+* `event_id` (Primary Key, INT)
+* `incident_id` (Foreign Key referencing `incidents.incident_id`)
+* `service_id` (Foreign Key referencing `services.service_id`)
+* `event_timestamp` (TIMESTAMP)
+* `event_type` (VARCHAR - e.g., LOG_WARNING, ALARM_TRIGGERED)
+* `message` (TEXT)
+* `metric_name` (VARCHAR - e.g., CPUUtilization, ConnectionCount)
+* `metric_value` (VARCHAR / FLOAT)
 
 ### 3. `reports`
 Stores AI-generated root cause analysis output.
-* `id` (Primary Key, INT)
-* `incident_id` (Foreign Key referencing `incidents.id`)
+* `report_id` (Primary Key, INT)
+* `incident_id` (Foreign Key referencing `incidents.incident_id`)
+* `summary` (TEXT)
 * `root_cause` (TEXT)
-* `fix_recommendations` (TEXT)
+* `recommendation` (TEXT)
+* `ai_model_used` (VARCHAR - e.g., gpt-4o, gpt-3.5-turbo)
 * `generated_at` (TIMESTAMP)
 
 ### 4. `services`
 Tracks cloud services monitored by the system.
-* `id` (Primary Key, INT)
-* `service_name` (VARCHAR)
-* `environment` (VARCHAR)
-* `health_status` (VARCHAR)
+* `service_id` (Primary Key, INT)
+* `service_name` (VARCHAR - e.g., ec2-app-server, rds-mysql-primary)
+* `service_type` (VARCHAR - e.g., EC2, RDS, ALB, Lambda)
+* `resource_id` (VARCHAR - e.g., ARN or Instance ID)
+* `region` (VARCHAR - e.g., us-east-1)
+* `created_at` (TIMESTAMP)
 
 ---
 

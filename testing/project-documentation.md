@@ -193,4 +193,123 @@ Fetches detailed AI breakdown, event timelines, and recommendations for a single
 ---
 
 ## 7. User Manual & Local Setup Guide
-*(Step-by-step guide to run MySQL, Spring Boot backend, and React frontend locally).*
+
+This guide provides end-to-end instructions for spinning up the local development environment, verifying services, and operating the AI-Powered Root Cause Analyzer to diagnose cloud infrastructure failures.
+
+---
+
+### **Part 1: Prerequisites & Environment Setup**
+
+Ensure the following tools are installed and verified on the host machine before running the application stack[cite: 1]:
+
+| Component | Required Version | Verification Command | Notes / Purpose |
+| :--- | :--- | :--- | :--- |
+| **Java Development Kit** | JDK 21 (LTS) | `java -version` | Runtime environment for Spring Boot backend |
+| **Node.js & npm** | Node v18+ / npm v9+ | `node -v` && `npm -v` | Runtime environment for React dashboard |
+| **MySQL Server** | MySQL 8.0+ | `mysql --version` | Relational storage for incidents & reports[cite: 1] |
+| **Git** | Git 2.40+ | `git --version` | Version control & repository syncing[cite: 1] |
+| **Postman** | Desktop App | N/A (GUI application) | API testing and endpoint validation[cite: 1] |
+
+---
+
+### **Part 2: Step-by-Step Local Deployment**
+
+#### **1. Database Provisioning (MySQL)**
+1. Launch MySQL CLI or MySQL Workbench:
+   ```bash
+   mysql -u root -p
+   ```
+2. Create the target database schema aligned with the JPA entities:
+   ```sql
+   CREATE DATABASE rootcause_db;
+   USE rootcause_db;
+   ```
+3. *(Optional)* Verify table generation once the backend runs; Hibernate will automatically create `incidents`, `incident_events`, `reports`, and `services` via `ddl-auto=update`[cite: 1].
+
+#### **2. Backend Service Configuration (Spring Boot)**
+1. Navigate to the backend directory:
+   ```bash
+   cd AI-checkererrorcause-DEVOPS/backend
+   ```
+2. Open `src/main/resources/application.properties` (or create `application-local.properties`):
+   ```properties
+   spring.application.name=AWSbackenderrorcause
+   server.port=8081
+   spring.profiles.active=local
+
+   # Database Configuration
+   spring.datasource.url=jdbc:mysql://localhost:3306/rootcause_db?createDatabaseIfNotExist=true&useSSL=false&serverTimezone=UTC
+   spring.datasource.username=root
+   spring.datasource.password=your_mysql_password
+   spring.datasource.driver-class-name=com.mysql.cj.jdbc.Driver
+
+   # Hibernate DDL
+   spring.jpa.hibernate.ddl-auto=update
+   spring.jpa.show-sql=true
+
+   # AI Integration
+   openai.api.key=YOUR_OPENAI_OR_OPENROUTER_API_KEY
+   ```
+   *(Note: For testing against AWS RDS, replace `localhost:3306` with the RDS endpoint provided by the cloud engineer)[cite: 1].*
+3. Launch the Spring Boot application:
+   * **Windows (PowerShell):**
+     ```powershell
+     ./mvnw.cmd spring-boot:run
+     ```
+   * **Linux / macOS:**
+     ```bash
+     ./mvnw spring-boot:run
+     ```
+4. Confirm startup by checking console logs for:
+   ```text
+   Tomcat started on port 8081 (http) with context path ''
+   Started AWSbackenderrorcause in X.XXX seconds
+   ```
+
+#### **3. Frontend Dashboard Launch (React.js)**
+1. Open a separate terminal and navigate to the frontend directory:
+   ```bash
+   cd AI-checkererrorcause-DEVOPS/frontend
+   ```
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+3. Verify that the backend API base URL points to `http://localhost:8081` (in `.env` or API config file).
+4. Start the development server:
+   ```bash
+   npm start
+   ```
+5. Open your browser and navigate to `http://localhost:3000`.
+
+---
+
+### **Part 3: User Manual — Operating the Analyzer**
+
+#### **Step 1: Simulating / Ingesting AWS Cloud Logs**
+* **Automated Mode:** Logs streamed directly from AWS CloudWatch / CloudTrail land on the ingestion endpoint `POST /api/logs`[cite: 1].
+* **Manual / QA Simulation Mode:** 
+  1. Open Postman and select the request `Trigger AI Analysis` under the `AI-Root-Cause-Analyzer` collection[cite: 1].
+  2. Select the **Body** tab (`raw` > `JSON`) and paste a failure sequence from `test-failure-datasets.json` (such as Scenario 1: RDS Database Timeout)[cite: 1].
+  3. Click **Send** to dispatch logs to `POST http://localhost:8081/api/analyze`[cite: 1].
+
+#### **Step 2: Inspecting the AI Root Cause Report**
+1. Review the response returned in Postman or open the React Dashboard at `http://localhost:3000`[cite: 1].
+2. The UI automatically displays:
+   * **Incident Header:** Incident Key (e.g., `INC-8421`), Service Tag, Severity Level, and Status[cite: 1].
+   * **Chronological Timeline:** Visual nodes showing the chain of events (e.g., EC2 CPU spike at 10:01 $\rightarrow$ RDS pool exhaustion at 10:02 $\rightarrow$ ALB 503 error at 10:04)[cite: 1].
+   * **Identified Root Cause:** Synthesized diagnostic paragraph pinpointing the primary bottleneck[cite: 1].
+   * **Prescribed Recommendations:** Actionable engineering steps (e.g., scale RDS connection pool, configure auto-scaling group thresholds)[cite: 1].
+
+#### **Step 3: Accessing Historical Incident Reports**
+1. Navigate to the **Incidents Overview** tab in the dashboard (or execute `GET /api/incidents` via Postman)[cite: 1].
+2. Click on any historical incident record to open the detailed report view (`GET /api/reports/{id}`)[cite: 1].
+3. Export or copy the markdown report summary for post-mortem engineering meetings.
+
+---
+
+### **Part 4: Troubleshooting Common Issues**
+
+* **Backend port conflict:** If port `8081` is already occupied, modify `server.port=8082` in `application.properties` and update the base URL in Postman.
+* **Database Connection Failure (`Communications link failure`):** Ensure MySQL is running locally (`net start MySQL80` on Windows) or verify security group rules allow traffic if connecting to Sakshi's AWS RDS instance[cite: 1].
+* **AI Parser Error / Empty Recommendations:** Verify that the API key provided to Soham's AI module has active quota and that raw logs are non-empty strings[cite: 1].

@@ -1,4 +1,4 @@
-CREATE TABLE services (
+    CREATE TABLE services (
                           service_id BIGINT AUTO_INCREMENT PRIMARY KEY,
                           service_name VARCHAR(255) NOT NULL,
                           service_type VARCHAR(50) NOT NULL,

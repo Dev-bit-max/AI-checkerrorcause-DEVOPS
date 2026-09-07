@@ -1,36 +1,43 @@
-// GptAnalysisResult.java
 package com.cloud.AWSbackenderrorcause.Ai;
 
 import java.util.List;
 
-public class GptAnalysisResult 
-{
+public class GptAnalysisResult {
+
+    private String summary;
     private String rootCause;
     private List<TimelineEvent> timeline;
     private List<String> recommendations;
 
-    public String getRootCause() 
-    { 
-        return rootCause; 
+    public String getSummary() {
+        return summary;
     }
-    public void setRootCause(String rootCause) 
-    { 
-        this.rootCause = rootCause; 
+
+    public void setSummary(String summary) {
+        this.summary = summary;
     }
-    public List<TimelineEvent> getTimeline() 
-    { 
-        return timeline; 
+
+    public String getRootCause() {
+        return rootCause;
     }
-    public void setTimeline(List<TimelineEvent> timeline) 
-    { 
-        this.timeline = timeline; 
+
+    public void setRootCause(String rootCause) {
+        this.rootCause = rootCause;
     }
-    public List<String> getRecommendations() 
-    {
-        return recommendations; 
+
+    public List<TimelineEvent> getTimeline() {
+        return timeline;
     }
-    public void setRecommendations(List<String> recommendations) 
-    {
-        this.recommendations = recommendations; 
+
+    public void setTimeline(List<TimelineEvent> timeline) {
+        this.timeline = timeline;
+    }
+
+    public List<String> getRecommendations() {
+        return recommendations;
+    }
+
+    public void setRecommendations(List<String> recommendations) {
+        this.recommendations = recommendations;
     }
 }

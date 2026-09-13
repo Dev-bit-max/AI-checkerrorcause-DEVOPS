@@ -27,7 +27,7 @@ public class ReportService {
         return reportRepository.save(report);
     }
 
-    private Reportdto mapToDto(Report report) {
+    public Reportdto mapToDto(Report report) {
         return new Reportdto(
                 report.getReportId(),
                 report.getIncident().getIncidentId(),

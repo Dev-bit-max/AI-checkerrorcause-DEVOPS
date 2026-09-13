@@ -2,7 +2,12 @@ spring:
   application:
     name: AWSbackenderrorcause
   profiles:
-    active: local
-
+    active: aws
+  sql:
+    init:
+      mode: always
+  jpa:
+    defer-datasource-initialization: true
+    open-in-view: false
 server:
   port: 8081

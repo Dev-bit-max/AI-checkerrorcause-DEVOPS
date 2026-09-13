@@ -188,8 +188,21 @@ Fetches detailed AI breakdown, event timelines, and recommendations for a single
 ---
 
 ## 6. Test Plan & QA Results
-*(Postman assertions, test datasets, status code validations, and regression test results).*
 
+### Postman Test Execution Matrix
+
+| Test ID | Endpoint | Method | Expected Status | Actual Status | Latency | Assertion Result |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **TC-01** | `/api/incidents` | GET | 200 OK | 200 OK | 1.42 s | PASS (4/4 assertions) |
+| **TC-02** | `/api/incidents/1` | GET | 200 OK | 200 OK | 1.40 s | PASS (2/2 assertions) |
+| **TC-03** | `/api/reports/1` | GET | 200 OK | 200 OK | 411 ms | PASS (2/2 assertions) |
+| **TC-04** | `/api/logs` | POST | 200 OK | Pending | — | Ingestion pipeline pending |
+| **TC-05** | `/api/analyze` | POST | 200 OK | Pending | — | Blocked on AI Engine integration |
+
+### Test Verification & Evidence
+* **TC-01 Evidence:** Verified incident array structure mapped from AWS RDS MySQL (`./screenshots/test-get-all-incidents-pass.png`).
+* **TC-02 Evidence:** Verified single incident entity retrieval (`./screenshots/test-get-single-incident-pass.png`).
+* **TC-03 Evidence:** Verified diagnostic report, root cause detection payload, and recommendation payload (`./screenshots/test-get-report-pass.png`).
 ---
 
 ## 7. User Manual & Local Setup Guide

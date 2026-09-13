@@ -4,11 +4,13 @@ import com.cloud.AWSbackenderrorcause.Ai.GptAnalysisResult;
 import com.cloud.AWSbackenderrorcause.Ai.LogAnalysisService;
 import com.cloud.AWSbackenderrorcause.DTO.AnalyzeRequestdto;
 import com.cloud.AWSbackenderrorcause.DTO.LogEntrydto;
+import com.cloud.AWSbackenderrorcause.DTO.Reportdto;
 import com.cloud.AWSbackenderrorcause.entity.Incident;
 import com.cloud.AWSbackenderrorcause.entity.Report;
 import com.cloud.AWSbackenderrorcause.repository.IncidentRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -22,18 +24,16 @@ public class AnalysisService {
     private final ReportService reportService;
     private final LogAnalysisService logAnalysisService;
 
-    public Report processLogs(AnalyzeRequestdto request) {
+    @Transactional
+    public Reportdto processLogs(AnalyzeRequestdto request) {
 
         // 1. Validate request
         if (request.getLogs() == null || request.getLogs().isEmpty()) {
             throw new IllegalArgumentException("No logs provided");
         }
 
-        // 2. Find existing OPEN incident or create a new one
-        Incident incident = incidentRepository.findAll().stream()
-                .filter(i -> "OPEN".equalsIgnoreCase(i.getStatus()))
-                .findFirst()
-                .orElseGet(() -> createNewIncident(request));
+        // 2. Create a new incident for this analysis run
+        Incident incident = createNewIncident(request);
 
         // 3. Save every log as an incident event
         request.getLogs().forEach(log ->
@@ -52,7 +52,8 @@ public class AnalysisService {
 
         // 6. Build & save report
         Report report = buildReport(incident, aiResult);
-        return reportService.saveReport(report);
+        Report saved = reportService.saveReport(report);
+        return reportService.mapToDto(saved);
     }
 
     private Report buildReport(Incident incident, GptAnalysisResult aiResult) {
@@ -62,8 +63,11 @@ public class AnalysisService {
 
         report.setRootCause(aiResult.getRootCause());
 
-        // Soham will provide summary later
-        //report.setSummary(aiResult.getSummary());
+        report.setSummary(
+                aiResult.getSummary() != null && !aiResult.getSummary().isBlank()
+                        ? aiResult.getSummary()
+                        : "Summary pending — AI layer did not return one"
+        );
 
         report.setRecommendation(
                 String.join("; ", aiResult.getRecommendations())

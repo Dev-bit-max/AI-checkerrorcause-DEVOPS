@@ -93,3 +93,14 @@ AWS Cloud (EC2/RDS/ALB) ──> CloudWatch/CloudTrail ──> Spring Boot Backen
 * **Postman Test Suite:** Complete API assertion scripts and collections reside under `testing/`.
 * **Simulated Cloud Datasets:** Standardized failure payloads (RDS pool exhaustion, Lambda timeout, EC2 OOM) are documented in `testing/test-failure-datasets.json`.
 * **Defect Log:** Historical bug tracking is maintained in `testing/bug-tracker.md`.
+
+## AI Layer Setup (OpenRouter)
+
+The AI Layer uses OpenRouter to generate root-cause analysis. To run it locally:
+
+1. Create `Backend/src/main/resources/application-local.properties` (this file is gitignored — you must create it yourself).
+2. Add the following line:
+
+openai.api.key=YOUR_KEY_HERE
+
+3. Contact Divyanshu to get the shared OpenRouter key.

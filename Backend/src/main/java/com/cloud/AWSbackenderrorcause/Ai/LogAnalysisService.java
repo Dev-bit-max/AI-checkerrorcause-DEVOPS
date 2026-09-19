@@ -36,7 +36,7 @@ public class LogAnalysisService {
     """ + logsText;
 
         Map<String, Object> requestBody = Map.of(
-            "model", "openrouter/free",
+            "model", "deepseek-v4-flash-0731:free",
             "messages", List.of(Map.of("role", "user", "content", prompt))
         );
 

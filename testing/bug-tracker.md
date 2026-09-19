@@ -35,6 +35,7 @@
 **4. Error Response Snippet:**
 ```json
 // Paste error response from Postman here
+```
 ---
 
 #### **[BUG-001] AI Analysis Pipeline Upstream Failure on POST /api/analyze**
@@ -69,8 +70,8 @@
 ```
 
 **5. Root Cause & Diagnostic Findings:**
-*The team OpenRouter key was tested via curl.exe https://openrouter.ai/api/v1/auth/key and verified active (50/50 requests available).
-*In LogAnalysisService.java (line 34), "model": "openrouter/free" is hardcoded. OpenRouter rejected this slug as invalid or deprecated.
+* The team OpenRouter key was tested via curl.exe https://openrouter.ai/api/v1/auth/key and verified active (50/50 requests available).
+* In `LogAnalysisService.java` (line 34), `"model": "openrouter/free"` is hardcoded. OpenRouter rejected this slug as invalid or deprecated.
 
 **6. Required Fix:**
-*Soham must update LogAnalysisService.java with an active model slug or implement a fallback handler.
+* Soham must update `LogAnalysisService.java` with an active model slug or implement a fallback handler.

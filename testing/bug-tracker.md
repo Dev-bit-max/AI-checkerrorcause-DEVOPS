@@ -8,8 +8,7 @@
 
 | Bug ID | Endpoint / Module | Description | Severity | Assigned To | Status |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| *(No active bugs logged yet)* | — | — | — | — | — |
-
+| **BUG-001** | `POST /api/analyze` (AI) | HTTP 500: AI analysis failed due to upstream OpenRouter rejection (401/404) | High | Soham | Open |
 ---
 
 ### **Bug Report Template (Copy & paste below for each new bug)**
@@ -36,4 +35,42 @@
 **4. Error Response Snippet:**
 ```json
 // Paste error response from Postman here
-[cite: 1, 2]
+---
+
+#### **[BUG-001] AI Analysis Pipeline Upstream Failure on POST /api/analyze**
+* **Module Affected:** AI & Log Intelligence
+* **Endpoint / Screen:** `POST /api/analyze`
+* **Date Reported:** 2026-09-19
+* **Reported By:** Malhar
+* **Assigned To:** Soham
+* **Severity:** High
+
+
+**1. Steps to Reproduce:**
+1. Start backend server on port 8081.
+2. Open Postman request `POST Trigger AI Analysis` (`http://localhost:8081/api/analyze`).
+3. Send the 4-event incident payload (EC2 CPU spike -> RDS timeout -> 500 login -> ALB 503).
+4. Inspect the returned response status and body.
+
+**2. Expected Result:**
+* HTTP 200 OK with structured JSON containing `summary`, `rootCause`, `timeline`, and `recommendations`.
+
+**3. Actual Result:**
+* Server returned HTTP 500 Internal Server Error due to upstream model rejection.
+
+**4. Error Response Snippet:**
+```json
+{
+  "data": null,
+  "message": "Something went wrong: AI log analysis failed: 401 Unauthorized on POST request for \"[https://openrouter.ai/api/v1/chat/completions](https://openrouter.ai/api/v1/chat/completions)\": [no body]",
+  "success": false,
+  "timestamp": "2026-09-19T19:25:05.1190294"
+}
+```
+
+**5. Root Cause & Diagnostic Findings:**
+*The team OpenRouter key was tested via curl.exe https://openrouter.ai/api/v1/auth/key and verified active (50/50 requests available).
+*In LogAnalysisService.java (line 34), "model": "openrouter/free" is hardcoded. OpenRouter rejected this slug as invalid or deprecated.
+
+**6. Required Fix:**
+*Soham must update LogAnalysisService.java with an active model slug or implement a fallback handler.

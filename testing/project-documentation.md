@@ -197,13 +197,51 @@ Fetches detailed AI breakdown, event timelines, and recommendations for a single
 | **TC-02** | `/api/incidents/1` | GET | 200 OK | 200 OK | 1.40 s | PASS (2/2 assertions) |
 | **TC-03** | `/api/reports/1` | GET | 200 OK | 200 OK | 411 ms | PASS (2/2 assertions) |
 | **TC-04** | `/api/logs` | POST | 200 OK | Pending | — | Ingestion pipeline pending |
-| **TC-05** | `/api/analyze` | POST | 200 OK | Pending | — | Blocked on AI Engine integration |
+| **TC-05** | `/api/analyze` | POST | 200 OK | 500 Internal Server Error | 2.84 s | FAIL (Upstream OpenRouter model rejection; logged DEF-001) |
 
 ### Test Verification & Evidence
 * **TC-01 Evidence:** Verified incident array structure mapped from AWS RDS MySQL (`./screenshots/test-get-all-incidents-pass.png`).
 * **TC-02 Evidence:** Verified single incident entity retrieval (`./screenshots/test-get-single-incident-pass.png`).
 * **TC-03 Evidence:** Verified diagnostic report, root cause detection payload, and recommendation payload (`./screenshots/test-get-report-pass.png`).
 ---
+
+### Active Defect Logs
+
+#### Defect Report: DEF-001 (AI Analysis Integration Failure)
+
+| Attribute | Details |
+|---|---|
+| **Defect ID** | DEF-001 |
+| **Endpoint** | `POST http://localhost:8081/api/analyze` |
+| **Status** | Open / Blocked |
+| **Severity** | High / Blocker for Incident Analysis Pipeline |
+| **Component** | `LogAnalysisService.java` (lines 33–36) |
+| **Assigned Module Owner** | Soham (AI & Log Intelligence) |
+| **Backend Lead** | Divyanshu |
+| **Reporter** | Malhar (Testing & Documentation Module) |
+
+##### Description
+When invoking `POST /api/analyze` with a valid JSON payload containing 4 cloud log events, the backend fails to generate an AI incident report and returns HTTP 500 Internal Server Error.
+
+##### Actual Server Response
+- **HTTP Status:** `500 Internal Server Error`
+- **Response Payload:**
+```json
+{
+  "data": null,
+  "message": "Something went wrong: AI log analysis failed: 401 Unauthorized on POST request for \"[https://openrouter.ai/api/v1/chat/completions](https://openrouter.ai/api/v1/chat/completions)\": [no body]",
+  "success": false,
+  "timestamp": "2026-09-19T19:25:05.1190294"
+}
+```
+
+##### Diagnostic Findings
+1. **API Key Authentication Test:** The shared team OpenRouter API key was tested independently via `curl.exe https://openrouter.ai/api/v1/auth/key` and confirmed valid, active, and holding 50/50 remaining daily requests on the free tier.
+2. **Hardcoded Model Slug:** In `LogAnalysisService.java`, line 34 specifies `"model": "openrouter/free"`. OpenRouter rejects this slug as invalid or deprecated, causing the upstream call to abort.
+3. **Exception Handling:** `LogAnalysisService.java` wraps this failure into a generic runtime exception, surfacing as an internal server error to the caller.
+
+##### Required Action from AI Module Owner
+Soham must update `LogAnalysisService.java` to point to an active routing model identifier or implement a fallback mock handler so that endpoint verification can complete.
 
 ## 7. User Manual & Local Setup Guide
 

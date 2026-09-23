@@ -1,5 +1,6 @@
 package com.cloud.AWSbackenderrorcause.Ai;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Value;
@@ -77,40 +78,44 @@ public class LogAnalysisService {
 //
 //    return result;
 //    }
-     public GptAnalysisResult analyze(String service, List<String> errorLogs) throws Exception
+     public GptAnalysisResult analyze(String service, List<String> errorLogs)
      {
-         String logsText = String.join("\n", errorLogs);
+         try {
+             String logsText = String.join("\n", errorLogs);
 
-         String prompt = """
-             You are an experienced Site Reliability Engineer analyzing cloud incident logs.
-             Identify the root cause, build a chronological timeline, and suggest 2-3 fixes.
-             Reply ONLY in this exact JSON format, nothing else:
-             { "rootCause": "...", "timeline": [{"time":"...","event":"..."}], "recommendations": ["...", "..."] }
+             String prompt = """
+                 You are an experienced Site Reliability Engineer analyzing cloud incident logs.
+                 Identify the root cause, build a chronological timeline, and suggest 2-3 fixes.
+                 Reply ONLY in this exact JSON format, nothing else:
+                 { "rootCause": "...", "timeline": [{"time":"...","event":"..."}], "recommendations": ["...", "..."] }
+    
+                 Service: """ + service + """
+    
+                 Logs:
+                 """ + logsText;
 
-             Service: """ + service + """
+             Map<String, Object> requestBody = Map.of(
+                 "model", "gpt-4o-mini",
+                 "messages", List.of(Map.of("role", "user", "content", prompt))
+             );
 
-             Logs:
-             """ + logsText;
+             HttpHeaders headers = new HttpHeaders();
+             headers.setContentType(MediaType.APPLICATION_JSON);
+             headers.setBearerAuth(apiKey);
 
-         Map<String, Object> requestBody = Map.of(
-             "model", "gpt-4o-mini",
-             "messages", List.of(Map.of("role", "user", "content", prompt))
-         );
+             ResponseEntity<String> response = restTemplate.postForEntity(
+                 "https://api.openai.com/v1/chat/completions",
+                 new HttpEntity<>(requestBody, headers),
+                 String.class
+             );
 
-         HttpHeaders headers = new HttpHeaders();
-         headers.setContentType(MediaType.APPLICATION_JSON);
-         headers.setBearerAuth(apiKey);
+             JsonNode root = mapper.readTree(response.getBody());
+             String innerJsonText = root.get("choices").get(0).get("message").get("content").asText();
 
-         ResponseEntity<String> response = restTemplate.postForEntity(
-             "https://api.openai.com/v1/chat/completions",
-             new HttpEntity<>(requestBody, headers),
-             String.class
-         );
-
-         JsonNode root = mapper.readTree(response.getBody());
-         String innerJsonText = root.get("choices").get(0).get("message").get("content").asText();
-
-         return mapper.readValue(innerJsonText, GptAnalysisResult.class);
+             return mapper.readValue(innerJsonText, GptAnalysisResult.class);
+         } catch (JsonProcessingException e) {
+             throw new RuntimeException("OpenAI analysis failed",e);
+         }
      }
 >>>>>>> 90c9600 (minor changes)
 }

@@ -7,6 +7,7 @@ import com.cloud.AWSbackenderrorcause.entity.IncidentEvent;
 import com.cloud.AWSbackenderrorcause.entity.Service;
 import com.cloud.AWSbackenderrorcause.exception.ResourceNotFoundException;
 import com.cloud.AWSbackenderrorcause.repository.IncidentEventRepository;
+import com.cloud.AWSbackenderrorcause.repository.IncidentRepository;
 import com.cloud.AWSbackenderrorcause.repository.ServiceRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -20,6 +21,8 @@ public class IncidentEventService {
 
     private final IncidentEventRepository incidentEventRepository;
     private final ServiceRepository serviceRepository;
+    private final IncidentRepository incidentRepository;
+
 
     public IncidentEvent saveEvent(LogEntrydto dto, Incident incident) {
         Service service = serviceRepository.findById(dto.getServiceId())
@@ -68,4 +71,28 @@ public class IncidentEventService {
         }
 
     }
-}
+    public IncidentEventdto createEvent(IncidentEventdto dto) {
+
+        Incident incident = incidentRepository.findById(dto.getIncidentId())
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Incident not found with id: " + dto.getIncidentId()));
+
+        Service service = serviceRepository.findById(dto.getServiceId())
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Service not found with id: " + dto.getServiceId()));
+
+        IncidentEvent event = new IncidentEvent();
+
+        event.setIncident(incident);
+        event.setService(service);
+        event.setEventTimestamp(dto.getEventTimestamp());
+        event.setEventType(dto.getEventType());
+        event.setMessage(dto.getMessage());
+        event.setMetricName(dto.getMetricName());
+        event.setMetricValue(dto.getMetricValue());
+
+        IncidentEvent savedEvent = incidentEventRepository.save(event);
+
+        return mapToDto(savedEvent);
+    }
+    }

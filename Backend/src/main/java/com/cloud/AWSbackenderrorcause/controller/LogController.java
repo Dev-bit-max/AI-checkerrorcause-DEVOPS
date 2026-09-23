@@ -1,8 +1,6 @@
 package com.cloud.AWSbackenderrorcause.controller;
 
-
 import com.cloud.AWSbackenderrorcause.DTO.ApiResponse;
-import com.cloud.AWSbackenderrorcause.DTO.IncidentEventdto;
 import com.cloud.AWSbackenderrorcause.DTO.IncidentEventdto;
 import com.cloud.AWSbackenderrorcause.services.IncidentEventService;
 import lombok.RequiredArgsConstructor;
@@ -19,6 +17,19 @@ public class LogController {
 
     @GetMapping
     public ApiResponse<List<IncidentEventdto>> getAllLogs() {
-        return ApiResponse.success("Logs fetched successfully", incidentEventService.getAllEvents());
+        return ApiResponse.success(
+                "Logs fetched successfully",
+                incidentEventService.getAllEvents()
+        );
+    }
+
+    @PostMapping
+    public ApiResponse<IncidentEventdto> createLog(
+            @RequestBody IncidentEventdto logDto) {
+
+        return ApiResponse.success(
+                "Log created successfully",
+                incidentEventService.createEvent(logDto)
+        );
     }
 }

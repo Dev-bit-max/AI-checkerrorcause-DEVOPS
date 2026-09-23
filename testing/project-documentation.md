@@ -196,13 +196,16 @@ Fetches detailed AI breakdown, event timelines, and recommendations for a single
 | **TC-01** | `/api/incidents` | GET | 200 OK | 200 OK | 1.42 s | PASS (4/4 assertions) |
 | **TC-02** | `/api/incidents/1` | GET | 200 OK | 200 OK | 1.40 s | PASS (2/2 assertions) |
 | **TC-03** | `/api/reports/1` | GET | 200 OK | 200 OK | 411 ms | PASS (2/2 assertions) |
-| **TC-04** | `/api/logs` | POST | 200 OK | Pending | — | Ingestion pipeline pending |
-| **TC-05** | `/api/analyze` | POST | 200 OK | 500 Internal Server Error | 2.84 s | FAIL (Upstream OpenRouter model rejection; logged DEF-001) |
+| **TC-04** | `/api/logs` | POST | 200 OK | 500 Internal Server Error | 53 ms | FAIL (Missing `@PostMapping` in `LogController.java`; logged as BUG-002) |
+| **TC-05** | `/api/analyze` | POST | 200 OK | 500 Internal Server Error | 1.13 s | FAIL (JPA ID null error during event persistence; logged as BUG-003) |
+> **Note on Active Defects:** Full reproduction steps, stack traces, and developer assignments for **BUG-002** (Divyanshu) and **BUG-003** (Divyanshu/Ketaki) are tracked in [`bug-tracker.md`](./bug-tracker.md).
 
 ### Test Verification & Evidence
 * **TC-01 Evidence:** Verified incident array structure mapped from AWS RDS MySQL (`./screenshots/test-get-all-incidents-pass.png`).
 * **TC-02 Evidence:** Verified single incident entity retrieval (`./screenshots/test-get-single-incident-pass.png`).
 * **TC-03 Evidence:** Verified diagnostic report, root cause detection payload, and recommendation payload (`./screenshots/test-get-report-pass.png`).
+* **TC-04 Evidence:** Log ingestion failed with `Request method 'POST' is not supported` (`./screenshots/test-ingest-logs-fail.png`).
+* **TC-05 Evidence:** AI root-cause analysis failed with internal JPA null ID exception (`./screenshots/test-analyze-jpa-id-fail.png`).
 ---
 
 ### Active Defect Logs
@@ -251,57 +254,66 @@ This guide provides end-to-end instructions for spinning up the local developmen
 
 ### **Part 1: Prerequisites & Environment Setup**
 
-Ensure the following tools are installed and verified on the host machine before running the application stack[cite: 1]:
+Ensure the following tools are installed and verified on the host machine before running the application stack:
 
 | Component | Required Version | Verification Command | Notes / Purpose |
 | :--- | :--- | :--- | :--- |
-| **Java Development Kit** | JDK 21 (LTS) | `java -version` | Runtime environment for Spring Boot backend |
-| **Node.js & npm** | Node v18+ / npm v9+ | `node -v` && `npm -v` | Runtime environment for React dashboard |
-| **MySQL Server** | MySQL 8.0+ | `mysql --version` | Relational storage for incidents & reports[cite: 1] |
-| **Git** | Git 2.40+ | `git --version` | Version control & repository syncing[cite: 1] |
-| **Postman** | Desktop App | N/A (GUI application) | API testing and endpoint validation[cite: 1] |
+| **Java Development Kit** | JDK 17 or 21 (LTS) | `java -version` | Runtime environment for Spring Boot backend |
+| **Node.js & npm** | Node v18+ / npm v9+ | `node -v && npm -v` | Runtime environment for React dashboard |
+| **MySQL / Cloud Database** | MySQL 8.0+ / TiDB Cloud | `mysql --version` | Relational storage for incidents, services, and reports |
+| **Git** | Git 2.40+ | `git --version` | Version control & repository syncing |
+| **Postman** | Desktop App | N/A (GUI application) | API testing and endpoint validation |
 
 ---
 
 ### **Part 2: Step-by-Step Local Deployment**
 
-#### **1. Database Provisioning (MySQL)**
-1. Launch MySQL CLI or MySQL Workbench:
-   ```bash
-   mysql -u root -p
-   ```
-2. Create the target database schema aligned with the JPA entities:
-   ```sql
-   CREATE DATABASE rootcause_db;
-   USE rootcause_db;
-   ```
-3. *(Optional)* Verify table generation once the backend runs; Hibernate will automatically create `incidents`, `incident_events`, `reports`, and `services` via `ddl-auto=update`[cite: 1].
+#### **1. Database Provisioning & Schema**
+The backend repository is pre-configured with Spring Data JPA and Hibernate auto-DDL (`hibernate.ddl-auto: update`):
+* **Cloud TiDB / RDS:** If using the configured cloud database gateway, verify outbound network access to the TiDB endpoint on port `4000`.
+* **Local MySQL (Alternative):** If running against a local database instance:
+  ```bash
+  mysql -u root -p
+  ```
+  ```sql
+  CREATE DATABASE rootcause_db;
+  USE rootcause_db;
+  ```
+  Hibernate will automatically generate `incidents`, `incident_events`, `reports`, and `services` upon application startup.
 
 #### **2. Backend Service Configuration (Spring Boot)**
 1. Navigate to the backend directory:
-   ```bash
-   cd AI-checkererrorcause-DEVOPS/backend
+   ```powershell
+   cd Backend
    ```
-2. Open `src/main/resources/application.properties` (or create `application-local.properties`):
-   ```properties
-   spring.application.name=AWSbackenderrorcause
-   server.port=8081
-   spring.profiles.active=local
+2. Open `src/main/resources/application.yml` and verify the active profile and connection settings:
+   ```yaml
+   spring:
+     profiles:
+       active: aws   # or set to local if using a local MySQL instance
 
-   # Database Configuration
-   spring.datasource.url=jdbc:mysql://localhost:3306/rootcause_db?createDatabaseIfNotExist=true&useSSL=false&serverTimezone=UTC
-   spring.datasource.username=root
-   spring.datasource.password=your_mysql_password
-   spring.datasource.driver-class-name=com.mysql.cj.jdbc.Driver
+     datasource:
+       url: jdbc:mysql://[gateway01.ap-southeast-1.prod.aws.tidbcloud.com:4000/sys?sslMode=VERIFY_IDENTITY](https://gateway01.ap-southeast-1.prod.aws.tidbcloud.com:4000/sys?sslMode=VERIFY_IDENTITY)
+       username: <DB_USERNAME>
+       password: <DB_PASSWORD>
+       driver-class-name: com.mysql.cj.jdbc.Driver
 
-   # Hibernate DDL
-   spring.jpa.hibernate.ddl-auto=update
-   spring.jpa.show-sql=true
+     jpa:
+       hibernate:
+         ddl-auto: update
+         properties:
+           hibernate:
+             dialect: org.hibernate.dialect.MySQLDialect
 
-   # AI Integration
-   openai.api.key=YOUR_OPENAI_OR_OPENROUTER_API_KEY
+   server:
+     port: 8081
+
+   openai:
+     api:
+       key: <OPENAI_OR_OPENROUTER_API_KEY>
    ```
-   *(Note: For testing against AWS RDS, replace `localhost:3306` with the RDS endpoint provided by the cloud engineer)[cite: 1].*
+   *(Ensure the OpenAI/OpenRouter API key is populated to prevent NPE failures during AI report generation).*
+
 3. Launch the Spring Boot application:
    * **Windows (PowerShell):**
      ```powershell
@@ -311,7 +323,7 @@ Ensure the following tools are installed and verified on the host machine before
      ```bash
      ./mvnw spring-boot:run
      ```
-4. Confirm startup by checking console logs for:
+4. Confirm startup by checking the console logs:
    ```text
    Tomcat started on port 8081 (http) with context path ''
    Started AWSbackenderrorcause in X.XXX seconds
@@ -319,48 +331,66 @@ Ensure the following tools are installed and verified on the host machine before
 
 #### **3. Frontend Dashboard Launch (React.js)**
 1. Open a separate terminal and navigate to the frontend directory:
-   ```bash
-   cd AI-checkererrorcause-DEVOPS/frontend
+   ```powershell
+   cd frontend
    ```
 2. Install dependencies:
    ```bash
    npm install
    ```
-3. Verify that the backend API base URL points to `http://localhost:8081` (in `.env` or API config file).
+3. Confirm that the API base URL in the frontend client configuration points to `http://localhost:8081`.
 4. Start the development server:
    ```bash
-   npm start
+   npm run dev
    ```
-5. Open your browser and navigate to `http://localhost:3000`.
+5. Open your browser and navigate to the local client dashboard URL (typically `http://localhost:5173` or `http://localhost:3000`).
 
 ---
 
-### **Part 3: User Manual — Operating the Analyzer**
+### **Part 3: User Manual – Operating the Analyzer**
 
-#### **Step 1: Simulating / Ingesting AWS Cloud Logs**
-* **Automated Mode:** Logs streamed directly from AWS CloudWatch / CloudTrail land on the ingestion endpoint `POST /api/logs`[cite: 1].
-* **Manual / QA Simulation Mode:** 
-  1. Open Postman and select the request `Trigger AI Analysis` under the `AI-Root-Cause-Analyzer` collection[cite: 1].
-  2. Select the **Body** tab (`raw` > `JSON`) and paste a failure sequence from `test-failure-datasets.json` (such as Scenario 1: RDS Database Timeout)[cite: 1].
-  3. Click **Send** to dispatch logs to `POST http://localhost:8081/api/analyze`[cite: 1].
+#### **Step 1: Ingesting Telemetry & Triggering Analysis**
+* **Automated Log Ingestion:** Telemetry streamed from AWS CloudWatch / CloudTrail targets `POST /api/logs`.
+* **Manual QA Simulation:**
+  1. Open Postman and select the request `POST Trigger AI Analysis` (`http://localhost:8081/api/analyze`).
+  2. In the **Body** tab (`raw` > `JSON`), supply the target `serviceId` and chronological failure sequence:
+     ```json
+     {
+       "serviceId": 1,
+       "logs": [
+         {
+           "serviceName": "EC2",
+           "timestamp": "2026-09-19T10:01:00",
+           "message": "EC2 CPU utilization spiked to 98%"
+         },
+         {
+           "serviceName": "RDS",
+           "timestamp": "2026-09-19T10:02:00",
+           "message": "Database connection timeout: pool exhausted"
+         }
+       ]
+     }
+     ```
+  3. Click **Send** to trigger AI cascade analysis.
 
 #### **Step 2: Inspecting the AI Root Cause Report**
-1. Review the response returned in Postman or open the React Dashboard at `http://localhost:3000`[cite: 1].
-2. The UI automatically displays:
-   * **Incident Header:** Incident Key (e.g., `INC-8421`), Service Tag, Severity Level, and Status[cite: 1].
-   * **Chronological Timeline:** Visual nodes showing the chain of events (e.g., EC2 CPU spike at 10:01 $\rightarrow$ RDS pool exhaustion at 10:02 $\rightarrow$ ALB 503 error at 10:04)[cite: 1].
-   * **Identified Root Cause:** Synthesized diagnostic paragraph pinpointing the primary bottleneck[cite: 1].
-   * **Prescribed Recommendations:** Actionable engineering steps (e.g., scale RDS connection pool, configure auto-scaling group thresholds)[cite: 1].
+Review the response in Postman or open the React Dashboard to inspect:
+* **Incident Header:** Incident key, affected service identifier, severity, and status.
+* **Chronological Timeline:** Visual nodes depicting failure progression (e.g., EC2 CPU spike at 10:01 $\rightarrow$ RDS pool exhaustion at 10:02 $\rightarrow$ ALB 503 at 10:04).
+* **Identified Root Cause:** Synthesized diagnostic narrative pinpointing the primary bottleneck.
+* **Prescribed Recommendations:** Actionable mitigation steps (e.g., optimize query indexes, scale connection pool).
 
-#### **Step 3: Accessing Historical Incident Reports**
-1. Navigate to the **Incidents Overview** tab in the dashboard (or execute `GET /api/incidents` via Postman)[cite: 1].
-2. Click on any historical incident record to open the detailed report view (`GET /api/reports/{id}`)[cite: 1].
-3. Export or copy the markdown report summary for post-mortem engineering meetings.
+#### **Step 3: Accessing Historical Incident Records**
+1. In Postman, execute `GET /api/incidents` (`TC-01`) to retrieve all historical incidents.
+2. Execute `GET /api/incidents/{id}` (`TC-02`) or `GET /api/reports/{id}` (`TC-03`) to retrieve full diagnostics for an existing record.
 
 ---
 
 ### **Part 4: Troubleshooting Common Issues**
 
-* **Backend port conflict:** If port `8081` is already occupied, modify `server.port=8082` in `application.properties` and update the base URL in Postman.
-* **Database Connection Failure (`Communications link failure`):** Ensure MySQL is running locally (`net start MySQL80` on Windows) or verify security group rules allow traffic if connecting to Sakshi's AWS RDS instance[cite: 1].
-* **AI Parser Error / Empty Recommendations:** Verify that the API key provided to Soham's AI module has active quota and that raw logs are non-empty strings[cite: 1].
+* **Backend Port Conflict:** If port `8081` is already occupied, update `server.port: 8082` in `application.yml` and update the base URL in Postman and the React frontend.
+* **Database Connection Failure (`Communications link failure`):**
+  * If using TiDB Cloud, ensure your local IP is allowed in TiDB IP access rules.
+  * If using local MySQL, ensure the service is running (`net start MySQL80` on Windows).
+* **JPA ID Null Exception (`BUG-003`):** Ensure the root payload contains a non-null `serviceId` before sending requests to `/api/analyze` until the backend patch is applied.
+* **AI Analysis Failure (`BUG-001`):** Ensure the OpenAI API key has active quota and model slug is set to an active model (e.g., `gpt-4o-mini`) in `application.yml`.

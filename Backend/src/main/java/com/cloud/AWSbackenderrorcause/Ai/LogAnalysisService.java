@@ -36,7 +36,7 @@ public class LogAnalysisService {
     """ + logsText;
 
         Map<String, Object> requestBody = Map.of(
-            "model", "deepseek-v4-flash-0731:free",
+           "model", "nvidia/nemotron-3-ultra-550b-a55b:free",
             "messages", List.of(Map.of("role", "user", "content", prompt))
         );
 

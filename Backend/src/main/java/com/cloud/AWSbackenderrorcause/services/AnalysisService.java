@@ -73,7 +73,7 @@ public class AnalysisService {
                 String.join("; ", aiResult.getRecommendations())
         );
 
-        report.setAiModelUsed("gpt-4o-mini");
+       report.setAiModelUsed("nvidia/nemotron-3-ultra-550b-a55b:free");
         report.setGeneratedAt(LocalDateTime.now());
 
         return report;

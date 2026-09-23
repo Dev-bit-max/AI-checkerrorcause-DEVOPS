@@ -71,6 +71,13 @@ public class IncidentEventService {
         }
 
     }
+    public List<IncidentEventdto> getEventsByIncidentId(Long incidentId) {
+        return incidentEventRepository
+                .findByIncident_IncidentId(incidentId)
+                .stream()
+                .map(this::mapToDto)
+                .toList();
+    }
     public IncidentEventdto createEvent(IncidentEventdto dto) {
 
         Incident incident = incidentRepository.findById(dto.getIncidentId())

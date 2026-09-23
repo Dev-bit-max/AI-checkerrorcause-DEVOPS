@@ -3,10 +3,11 @@ package com.cloud.AWSbackenderrorcause.services;
 import com.cloud.AWSbackenderrorcause.Ai.GptAnalysisResult;
 import com.cloud.AWSbackenderrorcause.Ai.LogAnalysisService;
 import com.cloud.AWSbackenderrorcause.DTO.AnalyzeRequestdto;
-import com.cloud.AWSbackenderrorcause.DTO.LogEntrydto;
+import com.cloud.AWSbackenderrorcause.DTO.IncidentEventdto;
 import com.cloud.AWSbackenderrorcause.DTO.Reportdto;
 import com.cloud.AWSbackenderrorcause.entity.Incident;
 import com.cloud.AWSbackenderrorcause.entity.Report;
+import com.cloud.AWSbackenderrorcause.exception.ResourceNotFoundException;
 import com.cloud.AWSbackenderrorcause.repository.IncidentRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -27,44 +28,51 @@ public class AnalysisService {
     @Transactional
     public Reportdto processLogs(AnalyzeRequestdto request) {
 
-        // 1. Validate request
-        if (request.getLogs() == null || request.getLogs().isEmpty()) {
-            throw new IllegalArgumentException("No logs provided");
+        // 1. Fetch existing incident
+        Incident incident = incidentRepository.findById(request.getIncidentId())
+                .orElseThrow(() ->
+                        new ResourceNotFoundException("Incident not found"));
+
+        // 2. Fetch all logs of this incident
+        List<IncidentEventdto> logs =
+                incidentEventService.getEventsByIncidentId(request.getIncidentId());
+
+        if (logs.isEmpty()) {
+            throw new ResourceNotFoundException(
+                    "No logs found for this incident");
         }
 
-        // 2. Create a new incident for this analysis run
-        Incident incident = createNewIncident(request);
-
-        // 3. Save every log as an incident event
-        request.getLogs().forEach(log ->
-                incidentEventService.saveEvent(log, incident));
-
-        // 4. Extract only messages for AI
-        List<String> errorLogs = request.getLogs().stream()
-                .map(LogEntrydto::getMessage)
+        // 3. Extract log messages
+        List<String> errorLogs = logs.stream()
+                .map(IncidentEventdto::getMessage)
                 .filter(msg -> msg != null && !msg.isBlank())
                 .toList();
 
-        String serviceName = "service-" + request.getServiceId();
+        // 4. AI Analysis
+        GptAnalysisResult aiResult =
+                logAnalysisService.analyze("service", errorLogs);
 
-        // 5. AI Analysis
-        GptAnalysisResult aiResult = logAnalysisService.analyze(serviceName, errorLogs);
-
-        // 6. Build & save report
+        // 5. Build report
         Report report = buildReport(incident, aiResult);
-        Report saved = reportService.saveReport(report);
-        return reportService.mapToDto(saved);
+
+        // 6. Save & return
+        Report savedReport = reportService.saveReport(report);
+
+        return reportService.mapToDto(savedReport);
     }
 
-    private Report buildReport(Incident incident, GptAnalysisResult aiResult) {
+    private Report buildReport(Incident incident,
+                               GptAnalysisResult aiResult) {
 
         Report report = new Report();
+
         report.setIncident(incident);
 
         report.setRootCause(aiResult.getRootCause());
 
         report.setSummary(
-                aiResult.getSummary() != null && !aiResult.getSummary().isBlank()
+                aiResult.getSummary() != null &&
+                        !aiResult.getSummary().isBlank()
                         ? aiResult.getSummary()
                         : "Summary pending — AI layer did not return one"
         );
@@ -77,53 +85,5 @@ public class AnalysisService {
         report.setGeneratedAt(LocalDateTime.now());
 
         return report;
-    }
-
-    private Incident createNewIncident(AnalyzeRequestdto request) {
-
-        Incident incident = new Incident();
-
-        incident.setTitle("Failure - Service " + request.getServiceId());
-        incident.setIncidentType(detectIncidentType(request.getLogs()));
-        incident.setSeverity(calculateSeverity(request.getLogs()));
-        incident.setStatus("OPEN");
-        incident.setStartedAt(LocalDateTime.now());
-
-        return incidentRepository.save(incident);
-    }
-
-    private String calculateSeverity(List<LogEntrydto> logs) {
-
-        String text = logs.stream()
-                .map(LogEntrydto::getMessage)
-                .reduce("", String::concat)
-                .toLowerCase();
-
-        if (text.contains("503"))
-            return "CRITICAL";
-
-        if (text.contains("timeout"))
-            return "HIGH";
-
-        return "MEDIUM";
-    }
-
-    private String detectIncidentType(List<LogEntrydto> logs) {
-
-        String text = logs.stream()
-                .map(LogEntrydto::getMessage)
-                .reduce("", String::concat)
-                .toLowerCase();
-
-        if (text.contains("database"))
-            return "DATABASE";
-
-        if (text.contains("cpu"))
-            return "INFRASTRUCTURE";
-
-        if (text.contains("lambda"))
-            return "SERVERLESS";
-
-        return "APPLICATION";
     }
 }

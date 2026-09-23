@@ -13,7 +13,7 @@ import java.util.List;
 @AllArgsConstructor
 public class AnalyzeRequestdto {
 
-    private List<LogEntrydto> logs;   // the batch of logs to analyze
-    private Long serviceId;
+
+    private Long incidentId;
     // optional: which service triggered this
 }

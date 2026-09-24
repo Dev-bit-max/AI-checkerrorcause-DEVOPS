@@ -7,9 +7,9 @@
 
 | Bug ID | Endpoint / Module | Description | Severity | Assigned To | Status |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **BUG-001** | `POST /api/analyze` (AI) | HTTP 500: AI analysis failed due to upstream OpenRouter rejection (401/404) | High | Soham | Open |
+| **BUG-001** | `POST /api/analyze` (AI) | HTTP 500: AI analysis failed due to invalid/deprecated model string | High | Soham | Resolved (Pending Retest) |
 | **BUG-002** | `POST /api/logs` (Backend) | HTTP 500 / 405: Request method 'POST' is not supported on /api/logs | Medium | Divyanshu | Open |
-| **BUG-003** | `POST /api/analyze` (Backend/DB) | HTTP 500: JPA `The given id must not be null` during incident event persistence | High | Divyanshu / Ketaki | Open |
+| **BUG-003** | `POST /api/analyze` (Backend/DB) | HTTP 500: JPA `The given id must not be null` during incident event persistence | Low / Clarification | Divyanshu / Ketaki | Closed (Contract Mismatch / Not a Bug) |
 ---
 
 ### **Bug Report Template (Copy & paste below for each new bug)**
@@ -77,7 +77,7 @@
 **6. Required Fix:**
 * Soham must update `LogAnalysisService.java` with an active model slug or implement a fallback handler.
 
-
+* **Resolution Update:** Soham replaced the inactive `deepseek-v4-flash-0731:free` model with `nvidia/nemotron-3-ultra-550b-a55b:free` and corrected `aiModelUsed`. Retest pending Maven compilation fix.
 ---
 
 #### **[BUG-002] Missing POST Mapping for Log Ingestion on /api/logs**
@@ -155,3 +155,18 @@
 #### 6. Required Fix
 *Ensure Incident is explicitly saved via incidentRepository.save(incident) so a generated ID exists before associating child events.   
 *Verify serviceRepository lookups safely validate log.getServiceId() or use default fallbacks if serviceId is not provided per log item.
+
+#### 7. Developer Feedback & Code Review Findings
+* **Developer Confirmation (Ketaki):** Confirmed `AnalyzeRequestdto.java` strictly accepts `{"incidentId": <id>}`. 
+* **Design Purpose:** The endpoint `POST /api/analyze` is intended to trigger AI diagnostics against existing incident records stored in the database via `incidentRepository.findById(request.getIncidentId())`. It is not responsible for creating incidents or saving new event telemetry on the fly.
+* **Pipeline Clarification:** Raw log ingestion and initial incident creation belong exclusively to `POST /api/logs` (tracked separately under BUG-002).
+
+#### 8. Resolution & QA Action Taken
+* **Ticket Status:** Closed as **Invalid / Schema Mismatch**. The JPA `null` ID error was the expected failure resulting from passing an incompatible payload structure (`serviceId` + `logs` instead of `incidentId`).
+* **Test Case Updated:** Test case `TC-05` in `testing/project-documentation.md` and the Postman collection have been updated to target existing records:
+  ```json
+  {
+    "incidentId": 1
+  }
+  ```
+* **Retest Status:** Pending compilation fix on LogAnalysisService.java to verify AI model output.

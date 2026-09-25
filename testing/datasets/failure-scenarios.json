@@ -1,0 +1,112 @@
+{
+  "project": "AI-Powered Cloud Root Cause Analyzer",
+  "version": "1.0",
+  "description": "Simulated cloud failure telemetry datasets for QA pipeline validation",
+  "scenarios": [
+    {
+      "scenarioId": "SCN-01",
+      "name": "RDS Connection Pool Exhaustion & Cascading 503",
+      "targetService": "EC2 / RDS / ALB",
+      "severity": "CRITICAL",
+      "expectedRootCause": "Database connection pool exhaustion on RDS instance caused by high CPU bottleneck, leading to backend authentication failure and downstream ALB 503 errors.",
+      "telemetrySequence": [
+        {
+          "timestamp": "10:01:00 AM",
+          "service": "EC2-App-01",
+          "logLevel": "WARN",
+          "message": "WARNING: CPU utilization spiked to 98%"
+        },
+        {
+          "timestamp": "10:02:15 AM",
+          "service": "RDS-MySQL-Primary",
+          "logLevel": "ERROR",
+          "message": "Connection pool exhausted, max_connections limit reached"
+        },
+        {
+          "timestamp": "10:02:45 AM",
+          "service": "RDS-MySQL-Primary",
+          "logLevel": "ERROR",
+          "message": "Connection timed out for client 172.31.14.2"
+        },
+        {
+          "timestamp": "10:03:00 AM",
+          "service": "Spring-App",
+          "logLevel": "ERROR",
+          "message": "/api/v1/login endpoint failed with 500 Internal Server Error"
+        },
+        {
+          "timestamp": "10:04:10 AM",
+          "service": "AWS-ALB",
+          "logLevel": "CRITICAL",
+          "message": "HTTP 503 Service Unavailable: No healthy targets in target group"
+        }
+      ]
+    },
+    {
+      "scenarioId": "SCN-02",
+      "name": "AWS Lambda Memory Saturation & CloudWatch Alarm",
+      "targetService": "AWS Lambda / S3",
+      "severity": "HIGH",
+      "expectedRootCause": "Lambda invocation duration limit breached due to memory saturation during image processing, triggering CloudWatch alarm and upstream timeout.",
+      "telemetrySequence": [
+        {
+          "timestamp": "02:15:00 PM",
+          "service": "S3-EventBridge",
+          "logLevel": "INFO",
+          "message": "Triggered event ObjectCreated for image-upload-bucket"
+        },
+        {
+          "timestamp": "02:15:05 PM",
+          "service": "Lambda-ImageProcessor",
+          "logLevel": "INFO",
+          "message": "START RequestId: 4f7c8b21-9d1a-4a2e"
+        },
+        {
+          "timestamp": "02:15:35 PM",
+          "service": "Lambda-ImageProcessor",
+          "logLevel": "ERROR",
+          "message": "Task timed out after 30.03 seconds"
+        },
+        {
+          "timestamp": "02:15:36 PM",
+          "service": "AWS-CloudWatch",
+          "logLevel": "CRITICAL",
+          "message": "ALARM: Lambda Duration > 30000ms threshold breached"
+        }
+      ]
+    },
+    {
+      "scenarioId": "SCN-03",
+      "name": "EC2 Out Of Memory (OOM Killer) & Process Termination",
+      "targetService": "AWS EC2 / Systemd",
+      "severity": "CRITICAL",
+      "expectedRootCause": "Linux kernel OOM killer terminated the Spring Boot JVM process (PID 1420) due to memory starvation, failing ALB target health checks.",
+      "telemetrySequence": [
+        {
+          "timestamp": "08:45:00 AM",
+          "service": "Kernel-EC2-Instance",
+          "logLevel": "WARN",
+          "message": "oom-killer invoked: score=1024, pid=1420 (java)"
+        },
+        {
+          "timestamp": "08:45:02 AM",
+          "service": "Kernel-EC2-Instance",
+          "logLevel": "ERROR",
+          "message": "Out of memory: Kill process 1420 (java) score 950 or sacrifice child"
+        },
+        {
+          "timestamp": "08:45:05 AM",
+          "service": "Systemd",
+          "logLevel": "ERROR",
+          "message": "spring-boot.service: Main process exited, code=killed, status=9/KILL"
+        },
+        {
+          "timestamp": "08:45:10 AM",
+          "service": "AWS-ALB",
+          "logLevel": "CRITICAL",
+          "message": "Health check failed for target i-0abcd1234efgh5678"
+        }
+      ]
+    }
+  ]
+}

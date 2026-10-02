@@ -13,65 +13,52 @@ import java.util.Map;
 @Service
 public class LogAnalysisService {
 
-    @Value("${openai.api.key}")
+    @Value("${openrouter.api.key}")
     private String apiKey;
 
     private final RestTemplate restTemplate = new RestTemplate();
     private final ObjectMapper mapper = new ObjectMapper();
 
     public GptAnalysisResult analyze(String service, List<String> errorLogs) {
-        try {
-            String logsText = String.join("\n", errorLogs);
+    try {
+        String logsText = String.join("\n", errorLogs);
 
-            String prompt = """
-                You are an experienced Site Reliability Engineer analyzing cloud incident logs.
-                Write a short 1-2 sentence summary of the incident, identify the root cause,
-                build a chronological timeline, and suggest 2-3 fixes.
+        String prompt = """
+    You are an experienced Site Reliability Engineer analyzing cloud incident logs.
+    Write a short 1-2 sentence summary of the incident, identify the root cause,
+    build a chronological timeline, and suggest 2-3 fixes.
+    Reply ONLY in this exact JSON format, nothing else:
+    { "summary": "...", "rootCause": "...", "timeline": [{"time":"...","event":"..."}], "recommendations": ["...", "..."] }
 
-                Reply ONLY in this exact JSON format:
-                {
-                  "summary": "...",
-                  "rootCause": "...",
-                  "timeline": [{"time":"...","event":"..."}],
-                  "recommendations": ["...", "..."]
-                }
+    Service: """ + service + """
 
-                Service:
-                """ + service + """
+    Logs:
+    """ + logsText;
 
-                Logs:
-                """ + logsText;
+        Map<String, Object> requestBody = Map.of(
+           "model", "nvidia/nemotron-3-ultra-550b-a55b:free",
+            "messages", List.of(Map.of("role", "user", "content", prompt))
+        );
 
-            Map<String, Object> requestBody = Map.of(
-                    "model", "nvidia/nemotron-3-ultra-550b-a55b:free",
-                    "messages", List.of(
-                            Map.of("role", "user", "content", prompt)
-                    )
-            );
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.setBearerAuth(apiKey);
+        headers.set("HTTP-Referer", "http://localhost:8080");
+        headers.set("X-Title", "AI Root Cause Analyzer");
 
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_JSON);
-            headers.setBearerAuth(apiKey);
-            headers.set("HTTP-Referer", "http://localhost:8080");
-            headers.set("X-Title", "AI Root Cause Analyzer");
+        ResponseEntity<String> response = restTemplate.postForEntity(
+            "https://openrouter.ai/api/v1/chat/completions",
+            new HttpEntity<>(requestBody, headers),
+            String.class
+        );
 
-            ResponseEntity<String> response = restTemplate.postForEntity(
-                    "https://openrouter.ai/api/v1/chat/completions",
-                    new HttpEntity<>(requestBody, headers),
-                    String.class
-            );
+        JsonNode root = mapper.readTree(response.getBody());
+        String innerJsonText = root.get("choices").get(0).get("message").get("content").asText();
 
-            JsonNode root = mapper.readTree(response.getBody());
-            String content = root.get("choices")
-                    .get(0)
-                    .get("message")
-                    .get("content")
-                    .asText();
+        return mapper.readValue(innerJsonText, GptAnalysisResult.class);
 
-            return mapper.readValue(content, GptAnalysisResult.class);
-
-        } catch (Exception e) {
-            throw new RuntimeException("AI log analysis failed: " + e.getMessage(), e);
-        }
+    } catch (Exception e) {
+        throw new RuntimeException("AI log analysis failed: " + e.getMessage(), e);
     }
+}
 }

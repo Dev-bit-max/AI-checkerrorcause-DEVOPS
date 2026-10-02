@@ -1,32 +1,11 @@
-﻿import React, { useState } from "react";
-import { getReportByIncidentId, getAllIncidents } from "../api/client";
-
-
-function Navbar() {
-  return (
-    <nav className="sticky top-0 z-30 flex items-center justify-between border-b border-white/60 bg-white/75 px-8 py-4 shadow-sm backdrop-blur-xl">
-      <h1 className="bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-xl font-bold tracking-tight text-transparent">
-        RootCause AI
-      </h1>
-      <div className="flex gap-8 text-sm">
-        <a href="/" className="text-gray-600 transition-colors hover:text-blue-600">Overview</a>
-        <a href="/incidents" className="text-gray-600 transition-colors hover:text-blue-600">Incidents</a>
-        <a href="/analyze" className="text-gray-600 transition-colors hover:text-blue-600">Analyze Logs</a>
-        <a href="/reports" className="font-medium text-blue-600">Reports</a>
-      </div>
-      <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-slate-800 to-blue-700 text-sm font-bold text-white shadow-md">
-        K
-      </div>
-    </nav>
-  );
-}
-
+import React, { useState, useEffect } from "react";
+import { getReportByIncidentId, getAllIncidents, deleteAllIncidents } from "../api/client";
+import Navbar from "./Navbar";
 
 function formatDateTime(dt) {
   if (!dt) return "N/A";
   return new Date(dt).toLocaleString();
 }
-
 
 function Reports() {
   const [incidentIdInput, setIncidentIdInput] = useState("");
@@ -36,14 +15,42 @@ function Reports() {
   const [allIncidents, setAllIncidents] = useState([]);
   const [incidentsLoading, setIncidentsLoading] = useState(false);
   const [showIncidentPicker, setShowIncidentPicker] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [successMsg, setSuccessMsg] = useState("");
 
+  const handleDeleteAll = async () => {
+    const confirmed = window.confirm("Are you sure you want to permanently delete ALL incidents and reports from the database? This cannot be undone.");
+    if (!confirmed) return;
+    try {
+      setDeleting(true);
+      setError("");
+      setSuccessMsg("");
+      await deleteAllIncidents();
+      setReport(null);
+      setIncidentIdInput("");
+      setAllIncidents([]);
+      setShowIncidentPicker(false);
+      setSuccessMsg("All incidents, reports, and events were deleted successfully from the database.");
+    } catch (err) {
+      console.error("Failed to delete all incidents:", err);
+      setError(err?.response?.data?.message || err?.message || "Failed to delete incidents from database.");
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const id = params.get("incidentId");
+    if (id) {
+      setIncidentIdInput(id);
+      fetchReport(id);
+    }
+  }, []);
 
   const fetchReport = async (id) => {
     const targetId = id || incidentIdInput;
-    if (!targetId) {
-      setError("Please enter an Incident ID.");
-      return;
-    }
+    if (!targetId) { setError("Please enter an Incident ID."); return; }
     try {
       setLoading(true);
       setError("");
@@ -58,7 +65,6 @@ function Reports() {
       setLoading(false);
     }
   };
-
 
   const loadIncidents = async () => {
     try {
@@ -79,163 +85,144 @@ function Reports() {
     fetchReport(incident.incidentId);
   };
 
+  const severityBadgeCls = (sev) => {
+    const s = sev?.toUpperCase();
+    if (s === "CRITICAL") return "bg-red-600 text-white";
+    if (s === "HIGH")     return "bg-orange-500 text-white";
+    if (s === "MEDIUM")   return "bg-amber-400 text-slate-900";
+    return "bg-green-500 text-white";
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/40 to-indigo-50/50">
+    <div className="min-h-screen bg-slate-100">
       <Navbar />
+      <main className="max-w-4xl mx-auto px-8 py-8">
 
-      <main className="relative mx-auto max-w-4xl px-8 py-8">
-        <div className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-blue-300/20 blur-3xl" />
-
-    
-        <div>
-          <h2 className="text-2xl font-semibold text-slate-900">AI Reports</h2>
-          <p className="mt-1 text-gray-500">
-            Retrieve AI-generated root cause analysis and recommendations by incident ID
-          </p>
+        <div className="flex items-start justify-between mb-6">
+          <div>
+            <h2 className="text-2xl font-bold text-slate-900">AI Reports</h2>
+            <p className="text-slate-500 mt-1 text-sm">Retrieve AI-generated root cause analysis and recommendations by incident ID</p>
+          </div>
+          <button
+            type="button"
+            onClick={handleDeleteAll}
+            disabled={deleting}
+            className="border border-red-300 bg-red-50 hover:bg-red-100 disabled:opacity-50 text-red-600 px-4 py-2 rounded-lg text-sm font-medium transition shadow-sm"
+          >
+            {deleting ? "Deleting…" : "Delete All Incidents"}
+          </button>
         </div>
 
-    
-        {error && (
-          <div className="mt-5 rounded-xl border border-red-200/80 bg-red-50/80 px-4 py-3 text-sm text-red-600 shadow-sm">
-            {error}
+        {successMsg && (
+          <div className="mb-6 bg-emerald-50 border border-emerald-200 text-emerald-800 px-4 py-3 rounded-lg text-sm flex items-center justify-between shadow-sm">
+            <div className="flex items-center gap-2">
+              <span className="font-bold text-emerald-600">✓</span>
+              <span>{successMsg}</span>
+            </div>
+            <button onClick={() => setSuccessMsg("")} className="text-emerald-600 hover:text-emerald-800 text-xs font-semibold px-2 py-1">Dismiss</button>
           </div>
         )}
 
-   
-        <div className="mt-6 rounded-2xl border border-white/80 bg-white/70 p-6 shadow-[0_8px_30px_rgba(15,23,42,0.06)] backdrop-blur-xl">
-          <h3 className="font-semibold text-slate-900">Fetch Report</h3>
-          <p className="mt-1 text-sm text-gray-500">Enter an Incident ID to load its AI-generated report</p>
+        {error && (
+          <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">{error}</div>
+        )}
 
-          <div className="mt-4 flex gap-3">
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 mb-4">
+          <h3 className="font-semibold text-slate-900 mb-1">Fetch Report</h3>
+          <p className="text-sm text-slate-500 mb-4">Enter an Incident ID to load its AI-generated report</p>
+          <div className="flex gap-3">
             <input
               type="number"
               value={incidentIdInput}
               onChange={(e) => setIncidentIdInput(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && fetchReport()}
               placeholder="Enter Incident ID (e.g. 1)"
-              className="flex-1 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-200"
+              className="flex-1 border border-slate-300 rounded-lg px-4 py-2.5 text-sm text-slate-800 bg-white outline-none focus:ring-2 focus:ring-blue-300 transition"
             />
-            <button
-              onClick={() => fetchReport()}
-              disabled={loading || !incidentIdInput}
-              className="rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-2.5 text-sm font-semibold text-white shadow hover:from-blue-700 hover:to-indigo-700 transition disabled:opacity-60"
-            >
-              {loading ? "Loading..." : "Get Report"}
+            <button onClick={() => fetchReport()} disabled={loading || !incidentIdInput}
+              className="bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white px-6 py-2.5 rounded-lg text-sm font-semibold transition">
+              {loading ? "Loading…" : "Get Report"}
             </button>
-            <button
-              onClick={loadIncidents}
-              disabled={incidentsLoading}
-              className="rounded-xl border border-slate-200 bg-white/70 px-4 py-2.5 text-sm hover:bg-white transition disabled:opacity-60"
-            >
-              {incidentsLoading ? "Loading..." : "Browse Incidents"}
+            <button onClick={loadIncidents} disabled={incidentsLoading}
+              className="border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 px-4 py-2.5 rounded-lg text-sm transition disabled:opacity-60">
+              {incidentsLoading ? "Loading…" : "Browse Incidents"}
             </button>
           </div>
         </div>
 
-
-
         {showIncidentPicker && (
-          <div className="mt-4 rounded-2xl border border-white/80 bg-white/70 shadow-[0_8px_30px_rgba(15,23,42,0.06)] backdrop-blur-xl overflow-hidden">
-            <div className="flex items-center justify-between border-b border-slate-200/70 p-4">
+          <div className="mb-4 bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+            <div className="flex items-center justify-between border-b border-slate-200 px-5 py-3">
               <h3 className="font-semibold text-slate-900 text-sm">Select an Incident</h3>
-              <button onClick={() => setShowIncidentPicker(false)} className="text-xs text-gray-400 hover:text-gray-600">
-                Close
-              </button>
+              <button onClick={() => setShowIncidentPicker(false)} className="text-xs text-slate-400 hover:text-slate-600 transition">Close</button>
             </div>
             {allIncidents.length ? (
-              <div className="divide-y divide-slate-200/70 max-h-72 overflow-y-auto">
+              <div className="divide-y divide-slate-100 max-h-72 overflow-y-auto">
                 {allIncidents.map((incident) => (
-                  <button
-                    key={incident.incidentId}
-                    onClick={() => selectIncident(incident)}
-                    className="w-full flex items-center justify-between p-4 text-left hover:bg-blue-50/40 transition-colors"
-                  >
+                  <button key={incident.incidentId} onClick={() => selectIncident(incident)}
+                    className="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-slate-50 transition-colors">
                     <div>
                       <p className="text-sm font-medium text-slate-900">{incident.title}</p>
-                      <p className="text-xs text-gray-500 mt-0.5">ID: {incident.incidentId} · {incident.incidentType || "Unknown type"}</p>
+                      <p className="text-xs text-slate-500 mt-0.5">ID: {incident.incidentId} · {incident.incidentType || "Unknown type"}</p>
                     </div>
-                    <span className={`rounded-full border px-2 py-0.5 text-xs font-medium ${
-                      incident.severity?.toUpperCase() === "CRITICAL" ? "bg-red-100 text-red-700 border-red-200" :
-                      incident.severity?.toUpperCase() === "HIGH" ? "bg-orange-100 text-orange-700 border-orange-200" :
-                      "bg-gray-100 text-gray-600 border-gray-200"
-                    }`}>
+                    <span className={`px-2.5 py-0.5 rounded text-xs font-semibold ${severityBadgeCls(incident.severity)}`}>
                       {incident.severity}
                     </span>
                   </button>
                 ))}
               </div>
             ) : (
-              <p className="p-4 text-sm text-gray-400">No incidents found.</p>
+              <p className="p-4 text-sm text-slate-400">No incidents found.</p>
             )}
           </div>
         )}
 
-        {/* Report Display */}
         {report && (
-          <section className="mt-6 rounded-2xl border border-white/80 bg-white/70 shadow-[0_10px_35px_rgba(15,23,42,0.07)] backdrop-blur-xl overflow-hidden">
-            {/* Header */}
-            <div className="bg-gradient-to-br from-slate-950 via-blue-950 to-indigo-900 p-6 text-white">
-              <p className="text-xs font-bold uppercase tracking-widest text-blue-300">AI Root Cause Analysis</p>
+          <section className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+            <div className="bg-slate-900 text-white p-6">
+              <p className="text-xs font-bold uppercase tracking-widest text-blue-400">AI Root Cause Analysis</p>
               <h2 className="mt-2 text-xl font-semibold">Incident Report #{report.incidentId}</h2>
-              <div className="mt-2 flex gap-4 text-sm text-slate-300">
+              <div className="mt-2 flex gap-4 text-sm text-slate-400">
                 <span>Report ID: {report.reportId}</span>
                 {report.aiModelUsed && <span>Model: {report.aiModelUsed}</span>}
                 <span>Generated: {formatDateTime(report.generatedAt)}</span>
               </div>
             </div>
 
-            <div className="p-6 space-y-5">
-              {/* Summary */}
+            <div className="p-6 space-y-4">
               {report.summary && (
-                <div className="rounded-xl border border-blue-100 bg-gradient-to-br from-blue-50 to-indigo-50/50 p-5">
-                  <p className="text-xs font-bold uppercase tracking-widest text-blue-600">Summary</p>
+                <div className="rounded-lg border border-blue-100 bg-blue-50 p-5">
+                  <p className="text-xs font-semibold text-blue-700 uppercase tracking-wide">Summary</p>
                   <p className="mt-3 text-sm leading-6 text-slate-700">{report.summary}</p>
                 </div>
               )}
-
-              {/* Root Cause */}
               {report.rootCause && (
-                <div className="rounded-xl border border-indigo-100 bg-indigo-50/40 p-5">
-                  <p className="text-xs font-bold uppercase tracking-widest text-indigo-600">Root Cause</p>
+                <div className="rounded-lg border border-orange-100 bg-orange-50 p-5">
+                  <p className="text-xs font-semibold text-orange-700 uppercase tracking-wide">Root Cause</p>
                   <p className="mt-3 text-sm leading-6 text-slate-700">{report.rootCause}</p>
                 </div>
               )}
-
-              {/* Recommendation */}
               {report.recommendation && (
-                <div className="rounded-xl border border-slate-200 bg-white/60 p-5">
-                  <p className="text-xs font-bold uppercase tracking-widest text-slate-600">Recommended Actions</p>
+                <div className="rounded-lg border border-green-100 bg-green-50 p-5">
+                  <p className="text-xs font-semibold text-green-700 uppercase tracking-wide">Recommended Actions</p>
                   <p className="mt-3 text-sm leading-6 text-slate-700">{report.recommendation}</p>
                 </div>
               )}
-
-              {/* Meta footer */}
-              <div className="flex items-center justify-between rounded-xl border border-slate-200/70 bg-slate-50/50 px-5 py-3">
+              <div className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-5 py-3">
                 <div>
-                  <p className="text-xs text-gray-400">Incident ID</p>
+                  <p className="text-xs text-slate-400">Incident ID</p>
                   <p className="font-mono text-xs text-slate-600 mt-0.5">{report.incidentId}</p>
                 </div>
                 {report.aiModelUsed && (
                   <div className="text-right">
-                    <p className="text-xs text-gray-400">AI Model</p>
+                    <p className="text-xs text-slate-400">AI Model</p>
                     <p className="text-xs font-medium text-slate-600 mt-0.5">{report.aiModelUsed}</p>
                   </div>
                 )}
               </div>
-
-              <div className="flex gap-3 pt-1">
-                <a
-                  href="/incidents"
-                  className="rounded-xl border border-blue-400/70 bg-blue-50/50 text-blue-600 px-4 py-2 text-sm hover:bg-blue-100/70 transition"
-                >
-                  View Incidents
-                </a>
-                <a
-                  href="/analyze"
-                  className="rounded-xl border border-slate-200 bg-white/70 px-4 py-2 text-sm hover:bg-white transition"
-                >
-                  Analyze More Logs
-                </a>
+              <div className="flex gap-3">
+                <a href="/incidents" className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition">View Incidents</a>
+                <a href="/analyze" className="border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 px-4 py-2 rounded-lg text-sm transition">Analyze More Logs</a>
               </div>
             </div>
           </section>

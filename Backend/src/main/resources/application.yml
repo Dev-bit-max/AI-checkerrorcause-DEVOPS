@@ -6,9 +6,9 @@ spring:
     active: aws
 
   datasource:
-    url: jdbc:mysql://gateway01.ap-southeast-1.prod.aws.tidbcloud.com:4000/sys?sslMode=VERIFY_IDENTITY
-    username: dsazNMN7CcKLoHz.root
-    password: 3h3UwSMBv7BEosAp
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
     driver-class-name: com.mysql.cj.jdbc.Driver
 
   sql:
@@ -26,4 +26,11 @@ spring:
         dialect: org.hibernate.dialect.MySQLDialect
 
 server:
-  port: 8081
+  port: ${PORT:8081}
+
+openrouter:
+  api:
+    key: ${OPENROUTER_API_KEY}
+
+aws:
+  region: ${AWS_REGION:us-east-1}

@@ -31,6 +31,7 @@ server:
 openrouter:
   api:
     key: ${OPENROUTER_API_KEY}
+    model: ${OPENROUTER_MODEL:openai/gpt-4o-mini}
 
 aws:
   region: ${AWS_REGION:us-east-1}

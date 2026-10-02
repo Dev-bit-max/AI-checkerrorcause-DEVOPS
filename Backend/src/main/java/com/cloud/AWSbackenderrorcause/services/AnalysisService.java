@@ -12,6 +12,7 @@ import com.cloud.AWSbackenderrorcause.repository.IncidentRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.beans.factory.annotation.Value;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -24,6 +25,9 @@ public class AnalysisService {
     private final IncidentEventService incidentEventService;
     private final ReportService reportService;
     private final LogAnalysisService logAnalysisService;
+
+    @Value("${openrouter.api.model:openai/gpt-4o-mini}")
+    private String aiModel;
 
     @Transactional
     public Reportdto processLogs(AnalyzeRequestdto request) {
@@ -81,7 +85,7 @@ public class AnalysisService {
                 String.join("; ", aiResult.getRecommendations())
         );
 
-       report.setAiModelUsed("nvidia/nemotron-3-ultra-550b-a55b:free");
+       report.setAiModelUsed(aiModel);
         report.setGeneratedAt(LocalDateTime.now());
 
         return report;

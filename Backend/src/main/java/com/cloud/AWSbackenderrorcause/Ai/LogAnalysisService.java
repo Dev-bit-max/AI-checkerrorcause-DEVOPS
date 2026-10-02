@@ -19,6 +19,9 @@ public class LogAnalysisService {
     @Value("${openrouter.api.key}")
     private String apiKey;
 
+    @Value("${openrouter.api.model:openai/gpt-4o-mini}")
+    private String model;
+
     private final RestTemplate restTemplate = new RestTemplate();
     private final ObjectMapper mapper = new ObjectMapper();
 
@@ -39,7 +42,8 @@ public class LogAnalysisService {
                     """ + logsText;
 
             Map<String, Object> requestBody = Map.of(
-                    "model", "nvidia/nemotron-3-ultra-550b-a55b:free",
+                    "model", model,
+                    "response_format", Map.of("type", "json_object"),
                     "messages", List.of(
                             Map.of(
                                     "role", "user",

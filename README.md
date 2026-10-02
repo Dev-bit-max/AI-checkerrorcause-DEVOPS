@@ -45,7 +45,7 @@ AWS Cloud (EC2/RDS/ALB) ──> CloudWatch/CloudTrail ──> Spring Boot Backen
 
 | Method | Endpoint | Description | Status |
 | :--- | :--- | :--- | :--- |
-| `POST` | `/api/analyze` | Ingests cloud log batches and generates AI incident analysis | AI Integration Pending |
+| `POST` | `/api/analyze` | Ingests cloud log batches and generates AI incident analysis | Active / Ready |
 | `GET` | `/api/incidents` | Retrieves all historical incident summaries from MySQL/RDS | Active / Ready |
 | `GET` | `/api/incidents/{id}` | Fetches individual incident details and metadata | Active / Ready |
 | `GET` | `/api/reports/{id}` | Fetches generated root-cause reports, timelines, and recommendations | Active / Ready |
@@ -85,7 +85,7 @@ AWS Cloud (EC2/RDS/ALB) ──> CloudWatch/CloudTrail ──> Spring Boot Backen
    ```bash
    npm start
    ```
-4. Access the dashboard UI at `http://localhost:3000`.
+4. Access the dashboard UI at `http://localhost:5173`.
 
 ---
 
@@ -101,6 +101,6 @@ The AI Layer uses OpenRouter to generate root-cause analysis. To run it locally:
 1. Create `Backend/src/main/resources/application-local.properties` (this file is gitignored — you must create it yourself).
 2. Add the following line:
 
-openai.api.key=YOUR_KEY_HERE
+openrouter.api.key=YOUR_KEY_HERE
 
 3. Contact Divyanshu to get the shared OpenRouter key.

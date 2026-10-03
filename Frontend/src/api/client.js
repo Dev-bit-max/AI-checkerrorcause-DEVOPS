@@ -18,8 +18,8 @@ const unwrap = (res) => {
 };
 
 // POST /api/analyze
-export const analyzeLogs = async ({ logs, serviceId }) => {
-    const res = await api.post("/api/analyze", { logs, serviceId });
+export const analyzeLogs = async ({ incidentId }) => {
+    const res = await api.post("/api/analyze", { incidentId });
     return unwrap(res);
 };
 

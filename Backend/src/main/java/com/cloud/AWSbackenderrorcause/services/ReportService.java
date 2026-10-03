@@ -24,7 +24,16 @@ public class ReportService {
     }
 
     public Report saveReport(Report report) {
-        return reportRepository.save(report);
+        return reportRepository.findByIncident_IncidentId(report.getIncident().getIncidentId())
+                .map(existing -> {
+                    existing.setSummary(report.getSummary());
+                    existing.setRootCause(report.getRootCause());
+                    existing.setRecommendation(report.getRecommendation());
+                    existing.setAiModelUsed(report.getAiModelUsed());
+                    existing.setGeneratedAt(report.getGeneratedAt());
+                    return reportRepository.save(existing);
+                })
+                .orElseGet(() -> reportRepository.save(report));
     }
 
     public Reportdto mapToDto(Report report) {

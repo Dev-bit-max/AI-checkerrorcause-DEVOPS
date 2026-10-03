@@ -7,6 +7,7 @@ import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
@@ -75,18 +76,37 @@ public class LogAnalysisService {
 
             JsonNode root = mapper.readTree(response.getBody());
 
-            String innerJsonText = root
-                    .get("choices")
-                    .get(0)
-                    .get("message")
-                    .get("content")
-                    .asText();
+            JsonNode choices = root.path("choices");
+            if (!choices.isArray() || choices.isEmpty()) {
+                String providerMessage = root.path("error").path("message").asText();
+                if (providerMessage.isBlank()) {
+                    providerMessage = root.toString();
+                }
+                throw new IllegalStateException(
+                        "OpenRouter response did not include choices: " + providerMessage
+                );
+            }
+
+            JsonNode content = choices.path(0).path("message").path("content");
+            if (content.isMissingNode() || content.isNull() || content.asText().isBlank()) {
+                throw new IllegalStateException(
+                        "OpenRouter returned a choice without message content: " + root
+                );
+            }
+
+            String innerJsonText = content.asText();
 
             return mapper.readValue(
                     innerJsonText,
                     GptAnalysisResult.class
             );
 
+        } catch (HttpStatusCodeException e) {
+            throw new RuntimeException(
+                    "OpenRouter returned HTTP " + e.getStatusCode().value()
+                            + ": " + e.getResponseBodyAsString(),
+                    e
+            );
         } catch (Exception e) {
             throw new RuntimeException(
                     "AI log analysis failed: " + e.getMessage(),

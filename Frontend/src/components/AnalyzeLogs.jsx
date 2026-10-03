@@ -3,48 +3,20 @@ import { useNavigate } from "react-router-dom";
 import { analyzeLogs } from "../api/client";
 import Navbar from "./Navbar";
 
-const emptyLog = () => ({
-  incidentId: "",
-  serviceId: "",
-  metricName: "",
-  metricValue: "",
-  message: "",
-  eventType: "",
-  eventTimestamp: new Date().toISOString().slice(0, 16),
-});
-
 function AnalyzeLogs() {
   const navigate = useNavigate();
-  const [serviceId, setServiceId] = useState("");
-  const [logs, setLogs] = useState([emptyLog()]);
+  const [incidentId, setIncidentId] = useState("");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState("");
-
-  const addLog    = () => setLogs((prev) => [...prev, emptyLog()]);
-  const removeLog = (index) => setLogs((prev) => prev.filter((_, i) => i !== index));
-  const updateLog = (index, field, value) =>
-    setLogs((prev) => prev.map((log, i) => (i === index ? { ...log, [field]: value } : log)));
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
     setResult(null);
-    const payload = {
-      serviceId: serviceId ? Number(serviceId) : null,
-      logs: logs.map((log) => ({
-        incidentId:     log.incidentId     ? Number(log.incidentId)  : null,
-        serviceId:      log.serviceId      ? Number(log.serviceId)   : (serviceId ? Number(serviceId) : null),
-        metricName:     log.metricName     || null,
-        metricValue:    log.metricValue    || null,
-        message:        log.message,
-        eventType:      log.eventType || "ERROR",
-        eventTimestamp: log.eventTimestamp ? new Date(log.eventTimestamp).toISOString() : new Date().toISOString(),
-      })),
-    };
     try {
       setLoading(true);
-      const data = await analyzeLogs(payload);
+      const data = await analyzeLogs({ incidentId: Number(incidentId) });
       setResult(data);
       // Redirect to Dashboard (Overview) with the newly generated incident ID and report
       if (data?.incidentId) {
@@ -71,22 +43,16 @@ function AnalyzeLogs() {
     ]);
   };
 
-  const inputCls = "w-full border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-800 bg-white outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-400 transition";
-
   return (
     <div className="min-h-screen bg-slate-100">
       <Navbar />
       <main className="max-w-5xl mx-auto px-8 py-8">
 
-        <div className="flex items-start justify-between mb-6">
+        <div className="mb-6">
           <div>
             <h2 className="text-2xl font-bold text-slate-900">Analyze Logs</h2>
-            <p className="text-slate-500 mt-1 text-sm">Submit AWS log entries for AI-powered root cause analysis</p>
+            <p className="text-slate-500 mt-1 text-sm">Run AI analysis on the logs already saved for an incident</p>
           </div>
-          <button type="button" onClick={loadSample}
-            className="border border-slate-300 bg-white px-4 py-2 rounded-lg text-sm text-slate-700 hover:bg-slate-50 transition shadow-sm">
-            Load Sample
-          </button>
         </div>
 
         {error && (
@@ -96,82 +62,18 @@ function AnalyzeLogs() {
         <form onSubmit={handleSubmit} className="space-y-4">
 
           <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
-            <h3 className="font-semibold text-slate-900 mb-1">Service Configuration</h3>
-            <p className="text-sm text-slate-500 mb-4">Optional: the service that triggered these logs</p>
+            <h3 className="font-semibold text-slate-900 mb-1">Incident</h3>
+            <p className="text-sm text-slate-500 mb-4">Enter an existing incident ID. The backend analyzes its saved log entries.</p>
             <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">Service ID</label>
-              <input type="number" value={serviceId} onChange={(e) => setServiceId(e.target.value)} placeholder="e.g. 1"
-                className="w-48 border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-800 bg-white outline-none focus:ring-2 focus:ring-blue-300 transition" />
-            </div>
-          </div>
-
-          <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h3 className="font-semibold text-slate-900">Log Entries</h3>
-                <p className="text-sm text-slate-500 mt-0.5">Add the AWS log events to analyze</p>
-              </div>
-              <button type="button" onClick={addLog}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition">
-                + Add Entry
-              </button>
-            </div>
-
-            <div className="space-y-4">
-              {logs.map((log, index) => (
-                <div key={index} className="rounded-lg border border-slate-200 bg-slate-50 p-5 relative">
-                  <div className="flex items-center justify-between mb-4">
-                    <span className="text-xs font-semibold text-slate-500 bg-slate-200 px-2.5 py-1 rounded-full">
-                      Entry #{index + 1}
-                    </span>
-                    {logs.length > 1 && (
-                      <button type="button" onClick={() => removeLog(index)}
-                        className="text-xs text-red-500 hover:text-red-700 font-medium transition">
-                        Remove
-                      </button>
-                    )}
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs font-medium text-slate-600 mb-1">Message <span className="text-red-500">*</span></label>
-                      <input type="text" required value={log.message} onChange={(e) => updateLog(index, "message", e.target.value)} placeholder="Log message or error description" className={inputCls} />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-slate-600 mb-1">Event Type <span className="text-red-500">*</span></label>
-                      <select required value={log.eventType} onChange={(e) => updateLog(index, "eventType", e.target.value)} className={inputCls}>
-                        <option value="">Select type…</option>
-                        <option value="ERROR">ERROR</option>
-                        <option value="METRIC_ALERT">METRIC_ALERT</option>
-                        <option value="WARNING">WARNING</option>
-                        <option value="INFO">INFO</option>
-                        <option value="CRITICAL">CRITICAL</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-slate-600 mb-1">Metric Name</label>
-                      <input type="text" value={log.metricName} onChange={(e) => updateLog(index, "metricName", e.target.value)} placeholder="e.g. CPUUtilization" className={inputCls} />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-slate-600 mb-1">Metric Value</label>
-                      <input type="text" value={log.metricValue} onChange={(e) => updateLog(index, "metricValue", e.target.value)} placeholder="e.g. 98.5" className={inputCls} />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-slate-600 mb-1">Event Timestamp</label>
-                      <input type="datetime-local" value={log.eventTimestamp} onChange={(e) => updateLog(index, "eventTimestamp", e.target.value)} className={inputCls} />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-slate-600 mb-1">Service ID (override)</label>
-                      <input type="number" value={log.serviceId} onChange={(e) => updateLog(index, "serviceId", e.target.value)} placeholder={serviceId || "Inherits from above"} className={inputCls} />
-                    </div>
-                  </div>
-                </div>
-              ))}
+              <label className="block text-xs font-medium text-slate-600 mb-1" htmlFor="incidentId">Incident ID <span className="text-red-500">*</span></label>
+              <input id="incidentId" type="number" min="1" required value={incidentId}
+                onChange={(e) => setIncidentId(e.target.value)} placeholder="e.g. 1" className="w-48 border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-800 bg-white outline-none focus:ring-2 focus:ring-blue-300 transition" />
             </div>
           </div>
 
           <button type="submit" disabled={loading}
             className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white py-3.5 rounded-xl text-sm font-semibold transition shadow-md">
-            {loading ? "Analyzing logs with AI…" : `Analyze ${logs.length} Log ${logs.length === 1 ? "Entry" : "Entries"}`}
+            {loading ? "Analyzing logs with AI…" : "Analyze Incident"}
           </button>
         </form>
 

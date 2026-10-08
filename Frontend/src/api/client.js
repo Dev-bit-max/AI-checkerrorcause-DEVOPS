@@ -47,6 +47,22 @@ export const getAllLogs = async () => {
     return unwrap(res);
 };
 
+// POST /api/logs
+export const createLog = async (logData) => {
+    const res = await api.post("/api/logs", logData);
+    return unwrap(res);
+};
+
+// Batch submit multiple logs to POST /api/logs
+export const createLogsBatch = async (logs) => {
+    const results = [];
+    for (const log of logs) {
+        const res = await createLog(log);
+        results.push(res);
+    }
+    return results;
+};
+
 // DELETE /api/incidents
 export const deleteAllIncidents = async () => {
     const res = await api.delete("/api/incidents");
